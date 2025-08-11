@@ -81,42 +81,10 @@ export class MessageListener {
         return;
       }
 
-      // Verificar se deve processar como interação com o bot
-      let shouldProcessBotInteraction = false;
-      let interactionReason = '';
-
-      // 1. Verificar se o bot foi mencionado diretamente
+      // Processar apenas quando o bot for mencionado diretamente (ignorar menção por role)
       const isBotMentioned = message.mentions.users.has(this.client.user!.id);
       if (isBotMentioned) {
-        shouldProcessBotInteraction = true;
-        interactionReason = 'Bot mencionado diretamente';
-      }
-
-      // 2. Verificar se é uma resposta a uma mensagem do bot
-      if (!shouldProcessBotInteraction && message.reference?.messageId) {
-        try {
-          const referencedMessage = await message.channel.messages.fetch(message.reference.messageId);
-          if (referencedMessage.author.id === this.client.user!.id) {
-            shouldProcessBotInteraction = true;
-            interactionReason = 'Resposta a mensagem do bot';
-          }
-        } catch (error) {
-          console.log(`   💬 Erro ao buscar mensagem referenciada: ${error}`);
-        }
-      }
-
-      // 3. Verificar se está em uma conversa com o bot
-      if (!shouldProcessBotInteraction) {
-        const isInBotConversation = this.isInBotConversation(message.channel.id);
-        if (isInBotConversation && message.author.id !== this.client.user!.id) {
-          shouldProcessBotInteraction = true;
-          interactionReason = 'Mensagem em conversa com bot';
-        }
-      }
-
-      // Processar interação com o bot se necessário
-      if (shouldProcessBotInteraction) {
-        console.log(`   🤖 ${interactionReason}! Processando...`);
+        console.log(`   🤖 Bot mencionado diretamente! Processando...`);
         await this.handleBotMention(message);
         return;
       }
@@ -148,20 +116,7 @@ export class MessageListener {
     }
   }
 
-  // Adicionar método para rastrear conversas com o bot
-  private botConversationChannels = new Set<string>();
-
-  private isInBotConversation(channelId: string): boolean {
-    return this.botConversationChannels.has(channelId);
-  }
-
-  private addBotConversation(channelId: string): void {
-    this.botConversationChannels.add(channelId);
-    // Remover após 5 minutos para não manter conversas antigas
-    setTimeout(() => {
-      this.botConversationChannels.delete(channelId);
-    }, 5 * 60 * 1000);
-  }
+  
 
   // Verificar se o usuário tem permissão para chamar o bot
   private hasPermissionToCallBot(message: Message): boolean {
@@ -318,11 +273,8 @@ export class MessageListener {
 
       console.log(`   ✅ Usuário autorizado`);
 
-      // Adicionar canal à lista de conversas com o bot
-      this.addBotConversation(message.channel.id);
-
-      // Remover a menção do bot do conteúdo
-      const contentWithoutMention = message.content.replace(/<@!\d+>|<@\d+>/g, '').trim();
+      // Remover a menção do bot (usuário) e de roles do conteúdo
+      const contentWithoutMention = message.content.replace(/<@!?\d+>|<@&\d+>/g, '').trim();
 
       console.log(`   Comando: "${contentWithoutMention}"`);
 
