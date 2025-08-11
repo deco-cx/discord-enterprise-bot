@@ -57,7 +57,11 @@ export class MessageListener {
     // Bot pronto
     this.client.on(Events.ClientReady, () => {
       console.log(`🤖 Bot conectado como ${this.client.user?.tag}`);
+      if (config.fetchThreadsOnStart) {
       this.fetchOldMessages();
+      } else {
+        console.log('⏭️ Busca de threads no início desativada por configuração.');
+      }
     });
   }
 
