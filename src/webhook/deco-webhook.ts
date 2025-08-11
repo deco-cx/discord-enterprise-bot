@@ -75,14 +75,18 @@ export class DecoWebhook {
       console.log(`   Resposta: ${JSON.stringify(response.data)}`);
 
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Erro ao enviar para webhook do Deco:', error);
-      
+
       if (axios.isAxiosError(error)) {
         console.error(`   Status: ${error.response?.status}`);
         console.error(`   Erro: ${JSON.stringify(error.response?.data)}`);
+      } else if (error instanceof Error) {
+        console.error(`   Erro: ${error.message}`);
+      } else {
+        console.error('   Erro desconhecido ao chamar webhook');
       }
-      
+
       return null;
     }
   }
