@@ -66,7 +66,7 @@ export class DecoWebhook {
           headers: {
             'Content-Type': 'application/json'
           },
-          timeout: 30000 // 30 segundos
+          timeout: 120000 // 120 segundos
         }
       );
 
