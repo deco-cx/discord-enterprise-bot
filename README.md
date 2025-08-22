@@ -340,7 +340,10 @@ This project includes a `discloud.config` file for easy deployment on
 [Discloud](https://discloudbot.com):
 
 ```bash
-# Build the project
+# Build and create ZIP for Discloud deployment
+npm run build:discloud
+
+# Alternatively, build manually:
 npm run build
 
 # Upload to Discloud with the following configuration:
@@ -352,10 +355,20 @@ VERSION=latest
 CMD=npm start
 ```
 
+### Automated Build Script
+
+The `npm run build:discloud` command will:
+
+- ✅ Compile TypeScript to JavaScript (`dist/` folder)
+- ✅ Create a ZIP file with timestamp
+- ✅ Include only necessary files: `dist/`, `package.json`, `discloud.config`,
+  `.env` (if exists)
+- ❌ Exclude: `node_modules/`, `package-lock.json`, `.git/`, source files
+
 ### Environment Setup for Discloud
 
-1. Create your `.env` file with all required variables
-2. Upload the project files including `dist/` folder
+1. Run `npm run build:discloud` to create the deployment ZIP
+2. Upload the generated ZIP file to Discloud
 3. Set environment variables in Discloud dashboard
 4. The bot will automatically start with health checks enabled
 
