@@ -1,41 +1,40 @@
 import { MessageListener } from './listener';
+import { logger } from './utils/logger';
 
 async function main() {
-  console.log('🚀 Iniciando Discord Channel Monitor Bot...');
+  logger.info('🚀 Iniciando Discord Bot Monitor...');
   
   const listener = new MessageListener();
 
-  // Tratamento de sinais para parada graciosa
   process.on('SIGINT', async () => {
-    console.log('\n🛑 Recebido sinal SIGINT, parando bot...');
+    logger.info('\n🛑 Recebido sinal SIGINT, parando bot...');
     await listener.stop();
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
-    console.log('\n🛑 Recebido sinal SIGTERM, parando bot...');
+    logger.info('\n🛑 Recebido sinal SIGTERM, parando bot...');
     await listener.stop();
     process.exit(0);
   });
 
-  // Tratamento de erros não capturados
   process.on('uncaughtException', (error) => {
-    console.error('❌ Erro não capturado:', error);
+    logger.error('❌ Erro não capturado:', error);
     process.exit(1);
   });
 
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Promise rejeitada não tratada:', reason);
+    logger.error('❌ Promise rejeitada não tratada:', { reason, promise });
     process.exit(1);
   });
 
   try {
     await listener.start();
-    console.log('✅ Bot iniciado com sucesso!');
+    logger.info('✅ Bot iniciado com sucesso!');
   } catch (error) {
-    console.error('❌ Erro ao iniciar o bot:', error);
+    logger.error('❌ Erro ao iniciar o bot:', error);
     process.exit(1);
   }
 }
 
-main(); 
+main();

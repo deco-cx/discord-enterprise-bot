@@ -1,36 +1,61 @@
 {
-  "name": "discord-channel-monitor-bot",
+  "name": "discord-enterprise-bot",
   "version": "1.0.0",
-  "description": "Bot para Discord que monitora canais, salva em Supabase e indexa em Pinecone",
+  "description": "Enterprise-grade Discord bot with monitoring, health checks, circuit breaker, and advanced logging",
+  "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "watch": "ts-node --watch src/index.ts",
-    "test-semantic-search": "ts-node scripts/test-semantic-search.ts",
-    "interactive-search": "ts-node scripts/interactive-search.ts"
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src/**/*.ts",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "quality": "npm run type-check && npm run lint && npm run format:check",
+    "quality:fix": "npm run type-check && npm run lint:fix && npm run format",
+    "prepare": "husky install"
   },
   "keywords": [
     "discord",
     "bot",
-    "supabase",
-    "monitoring"
+    "monitoring",
+    "api"
   ],
   "author": "",
   "license": "MIT",
-    "dependencies": {
+  "dependencies": {
     "axios": "^1.7.2",
-    "@supabase/supabase-js": "^2.53.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/eslint": "^9.6.1",
     "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "@typescript-eslint/parser": "^8.40.0",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
+    "prettier": "^3.6.2",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.2"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "ESLINT_USE_FLAT_CONFIG=false eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

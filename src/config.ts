@@ -1,39 +1,41 @@
 import dotenv from 'dotenv';
+import { configValidator } from './utils/config-validator';
 
 dotenv.config();
+
+if (!configValidator.validate()) {
+  console.error('❌ Configuration validation failed. Please check your environment variables.');
+  process.exit(1);
+}
 
 export const config = {
   discord: {
     token: process.env.DISCORD_TOKEN!,
   },
-  supabase: {
-    url: process.env.SUPABASE_URL || '',
-    anonKey: process.env.SUPABASE_ANON_KEY || '',
-    table: process.env.SUPABASE_TABLE || 'messages',
-    enabled: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_ANON_KEY,
+  api: {
+    url: process.env.API_URL || '',
+    enabled: !!process.env.API_URL,
+    timeout: parseInt(process.env.API_TIMEOUT || '120000', 10),
+    retryAttempts: parseInt(process.env.API_RETRY_ATTEMPTS || '3', 10),
+    retryDelay: parseInt(process.env.API_RETRY_DELAY || '1000', 10),
+    keepAlive: process.env.API_KEEP_ALIVE !== 'false',
+  },
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    enableColors: process.env.LOG_COLORS !== 'false',
+  },
+  rateLimit: {
+    maxEventsPerMinute: parseInt(process.env.MAX_EVENTS_PER_MINUTE || '100', 10),
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
+  },
+  security: {
+    apiKey: process.env.API_KEY || '',
+    webhookSecret: process.env.WEBHOOK_SECRET || '',
+  },
+  health: {
+    enabled: process.env.HEALTH_CHECK_ENABLED !== 'false',
+    port: parseInt(process.env.HEALTH_CHECK_PORT || '3000', 10),
   },
   monitoredChannels: process.env.MONITORED_CHANNELS?.split(',') || [],
-  fetchThreadsOnStart: process.env.FETCH_THREADS_ON_START === 'true',
-
-  allowedRoles: process.env.ALLOWED_ROLES?.split(',').filter(Boolean) || [], // Roles que podem chamar o bot
 };
 
-// Validação das variáveis obrigatórias (apenas Discord)
-const requiredEnvVars = [
-  'DISCORD_TOKEN',
-];
-
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Variável de ambiente obrigatória não encontrada: ${envVar}`);
-  }
-}
-
-// Log das funcionalidades habilitadas
-console.log('🔧 Configuração do Bot:');
-console.log(`  ✅ Discord: Habilitado`);
-console.log(`  ${config.supabase.enabled ? '✅' : '❌'} Supabase: ${config.supabase.enabled ? 'Habilitado' : 'Desabilitado'}`);
-console.log(`  📺 Canais monitorados: ${config.monitoredChannels.length}`);
-console.log(`  🧵 Buscar threads no início: ${config.fetchThreadsOnStart ? 'Sim' : 'Não'}`);
-
-console.log(`  🔐 Roles permitidas: ${config.allowedRoles.length > 0 ? config.allowedRoles.join(', ') : 'Todos os usuários'}`); 

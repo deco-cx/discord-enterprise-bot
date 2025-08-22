@@ -1,45 +1,47 @@
-export interface DiscordMessage {
-  _id: string;
+export interface DiscordEventData {
+  eventType:
+    | 'message_create'
+    | 'message_update'
+    | 'message_delete'
+    | 'message_reaction_add'
+    | 'message_reaction_remove'
+    | 'thread_create'
+    | 'thread_delete'
+    | 'thread_update';
+  messageId?: string;
   channelId: string;
-  guildId: string;
-  userId: string;
-  username: string;
-  content: string;
-  timestamp: Date;
-  replyTo?: string;
-  threadId?: string;
-  threadTitle?: string; // Título da thread (se aplicável)
-  channelName?: string; // Nome do canal
-  isClosed?: boolean; // Indica se a thread foi fechada
-  attachments: string[];
-  embeds: any[];
-  mentions: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WebhookPayload {
-  channel_id: string;
-  message_id: string;
-  content: string;
-  author: {
+  guildId?: string;
+  userId?: string;
+  content?: string;
+  author?: {
     id: string;
     username: string;
+    discriminator: string;
+    bot: boolean;
   };
-  link: string;
   timestamp: string;
-  reply_to?: string;
-  thread_id?: string;
-}
-
-export interface EmbeddingData {
-  id: string;
-  values: number[];
-  metadata: {
-    channelId: string;
-    guildId: string;
-    userId: string;
-    content: string;
-    timestamp: string;
+  reactions?: Array<{
+    emoji: string;
+    count: number;
+    users: string[];
+  }>;
+  attachments?: Array<{
+    id: string;
+    filename: string;
+    url: string;
+    size: number;
+    contentType?: string;
+  }>;
+  thread?: {
+    id: string;
+    name: string;
+    type: string;
+    parentId?: string;
   };
-} 
+  oldContent?: string;
+  newContent?: string;
+  reaction?: {
+    emoji: string;
+    userId: string;
+  };
+}

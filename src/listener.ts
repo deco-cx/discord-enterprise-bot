@@ -1,13 +1,29 @@
-import { Client, Events, Message, TextChannel, GatewayIntentBits, ThreadChannel, ForumChannel } from 'discord.js';
+import { 
+  Client, 
+  Events, 
+  Message, 
+  GatewayIntentBits, 
+  ThreadChannel, 
+  MessageReaction, 
+  User,
+  PartialMessage,
+  PartialMessageReaction,
+  PartialUser 
+} from 'discord.js';
+
 import { config } from './config';
-import { SupabaseStorage } from './storage/supabase';
-import { DecoWebhook } from './webhook/deco-webhook';
-import { DiscordMessage } from './types';
+import { ApiClient } from './services/api-client';
+import { HealthCheckServer } from './services/health-check';
+import { DiscordEventData } from './types';
+import { logger } from './utils/logger';
+import { RateLimiter } from './utils/rate-limiter';
+import { metrics } from './utils/metrics';
 
 export class MessageListener {
   private client: Client;
-  private supabaseStorage: SupabaseStorage;
-  private decoWebhook: DecoWebhook; // Added property for DecoWebhook
+  private apiClient: ApiClient;
+  private healthCheck: HealthCheckServer;
+  private rateLimiter: RateLimiter;
 
   constructor() {
     this.client = new Client({
@@ -15,33 +31,39 @@ export class MessageListener {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildMembers,
       ],
     });
 
-    this.supabaseStorage = new SupabaseStorage();
-    this.decoWebhook = new DecoWebhook(); // Initialize DecoWebhook
-
+    this.apiClient = new ApiClient();
+    this.healthCheck = new HealthCheckServer();
+    this.rateLimiter = new RateLimiter();
     this.setupEventListeners();
+    this.setupMetricsTimer();
   }
 
   private setupEventListeners(): void {
-    // Nova mensagem
     this.client.on(Events.MessageCreate, async (message: Message) => {
-      await this.handleNewMessage(message);
+      await this.handleMessageCreate(message);
     });
 
-    // Mensagem editada
-    this.client.on(Events.MessageUpdate, async (oldMessage: any, newMessage: any) => {
+    this.client.on(Events.MessageUpdate, async (oldMessage: Message | PartialMessage, newMessage: Message | PartialMessage) => {
       await this.handleMessageUpdate(oldMessage, newMessage);
     });
 
-    // Mensagem deletada
-    this.client.on(Events.MessageDelete, async (message: any) => {
+    this.client.on(Events.MessageDelete, async (message: Message | PartialMessage) => {
       await this.handleMessageDelete(message);
     });
 
-    // Eventos de thread
+    this.client.on(Events.MessageReactionAdd, async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+      await this.handleMessageReactionAdd(reaction, user);
+    });
+
+    this.client.on(Events.MessageReactionRemove, async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+      await this.handleMessageReactionRemove(reaction, user);
+    });
+
     this.client.on(Events.ThreadCreate, async (thread: ThreadChannel) => {
       await this.handleThreadCreate(thread);
     });
@@ -54,507 +76,246 @@ export class MessageListener {
       await this.handleThreadUpdate(oldThread, newThread);
     });
 
-    // Bot pronto
     this.client.on(Events.ClientReady, () => {
-      console.log(`🤖 Bot conectado como ${this.client.user?.tag}`);
-      if (config.fetchThreadsOnStart) {
-      this.fetchOldMessages();
-      } else {
-        console.log('⏭️ Busca de threads no início desativada por configuração.');
-      }
+      const botTag = this.client.user?.tag || 'Unknown';
+      logger.botEvent('ready', { tag: botTag });
+      this.healthCheck.setDiscordStatus(true, botTag);
+    });
+
+    this.client.on(Events.Error, (error) => {
+      logger.error('Discord client error', error);
+      this.healthCheck.setDiscordStatus(false);
+    });
+
+    this.client.on('disconnect' as any, () => {
+      logger.warn('Discord client disconnected');
+      this.healthCheck.setDiscordStatus(false);
+    });
+
+    this.client.on('reconnecting' as any, () => {
+      logger.info('Discord client reconnecting');
     });
   }
 
-  private async handleNewMessage(message: Message): Promise<void> {
+  private setupMetricsTimer(): void {
+    setInterval(() => {
+      metrics.logSummary();
+    }, 300000);
+  }
+
+  private async processEvent(eventData: DiscordEventData, context: { messageId?: string; channelId: string }): Promise<void> {
+    if (!this.rateLimiter.isAllowed(context.channelId, eventData.eventType)) {
+      logger.warn(`Rate limit exceeded for ${eventData.eventType}`, {
+        channelId: context.channelId,
+        remaining: this.rateLimiter.getRemainingRequests(context.channelId, eventData.eventType),
+      });
+      return;
+    }
+
     try {
-      // Log para debug
-      console.log(`🔍 Nova mensagem recebida:`);
-      console.log(`   Canal: ${message.channel.id} (${(message.channel as any).name})`);
-      console.log(`   Tipo: ${this.getChannelTypeName(message.channel.type)}`);
-      console.log(`   Autor: ${message.author.username} (${message.author.bot ? 'BOT' : 'USUÁRIO'})`);
-      console.log(`   Conteúdo: "${message.content}"`);
-      console.log(`   Canais monitorados: ${config.monitoredChannels.join(', ')}`);
-
-      // Ignorar mensagens de outros bots (não do próprio bot)
-      if (message.author.bot && message.author.id !== this.client.user!.id) {
-        console.log(`   ❌ Ignorando mensagem de outro bot`);
-        return;
-      }
-
-      // Processar apenas quando o bot for mencionado diretamente (ignorar menção por role)
-      const isBotMentioned = message.mentions.users.has(this.client.user!.id);
-      if (isBotMentioned) {
-        console.log(`   🤖 Bot mencionado diretamente! Processando...`);
-        await this.handleBotMention(message);
-        return;
-      }
-
-      // Verificar se o canal está sendo monitorado
-      const isMonitored = config.monitoredChannels.includes(message.channel.id);
-      
-      // Para threads, verificar se o canal pai está sendo monitorado
-      const isThreadMonitored = message.channel.type === 11 || message.channel.type === 12 || message.channel.type === 13 
-        ? config.monitoredChannels.includes((message.channel as any).parentId)
-        : false;
-
-      if (!isMonitored && !isThreadMonitored) {
-        console.log(`   ❌ Canal não está na lista de monitorados`);
-        return;
-      }
-
-      console.log(`   ✅ Processando mensagem...`);
-
-      const discordMessage = this.createDiscordMessage(message);
-      
-      // Salvar no Supabase (se habilitado)
-      await this.supabaseStorage.saveMessage(discordMessage);
-
-      console.log(`   ✅ Mensagem processada com sucesso!`);
-
+      await this.apiClient.sendEvent(eventData);
+      this.healthCheck.recordSuccessfulApiCall();
     } catch (error) {
-      console.error('❌ Erro ao processar nova mensagem:', error);
+      logger.error(`Error handling ${eventData.eventType}`, {
+        messageId: context.messageId,
+        channelId: context.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  
-
-  // Verificar se o usuário tem permissão para chamar o bot
-  private hasPermissionToCallBot(message: Message): boolean {
-    // Se não há roles configuradas, permitir todos os usuários
-    if (config.allowedRoles.length === 0) {
+  private shouldMonitorChannel(channelId: string): boolean {
+    if (config.monitoredChannels.length === 0) {
       return true;
     }
-
-    // Verificar se o usuário tem alguma das roles permitidas
-    const member = message.member;
-    if (!member) {
-      console.log(`   ⚠️ Não foi possível obter informações do membro`);
-      return false;
-    }
-
-    const userRoles = member.roles.cache.map(role => role.id);
-    const hasAllowedRole = userRoles.some(roleId => config.allowedRoles.includes(roleId));
-
-    console.log(`   🔍 Verificando permissões:`);
-    console.log(`      Roles do usuário: ${userRoles.join(', ')}`);
-    console.log(`      Roles permitidas: ${config.allowedRoles.join(', ')}`);
-    console.log(`      Tem permissão: ${hasAllowedRole ? 'Sim' : 'Não'}`);
-
-    return hasAllowedRole;
+    return config.monitoredChannels.includes(channelId);
   }
 
-  private async handleMessageUpdate(oldMessage: Message, newMessage: Message): Promise<void> {
-    try {
-      if (newMessage.author.bot || !config.monitoredChannels.includes(newMessage.channel.id)) {
-        return;
-      }
-
-      console.log(`✏️ Mensagem editada em #${(newMessage.channel as TextChannel).name}`);
-
-      const discordMessage = this.createDiscordMessage(newMessage);
-      
-      // Atualizar no Supabase (se habilitado)
-      await this.supabaseStorage.saveMessage(discordMessage);
-
-    } catch (error) {
-      console.error('❌ Erro ao processar mensagem editada:', error);
+  private async handleMessageCreate(message: Message): Promise<void> {
+    if (!this.shouldMonitorChannel(message.channelId) || message.author.bot) {
+      return;
     }
+
+    const eventData: DiscordEventData = {
+      eventType: 'message_create',
+      messageId: message.id,
+      channelId: message.channelId,
+      guildId: message.guildId || undefined,
+      userId: message.author.id,
+      content: message.content,
+      author: {
+        id: message.author.id,
+        username: message.author.username,
+        discriminator: message.author.discriminator,
+        bot: message.author.bot,
+      },
+      timestamp: message.createdAt.toISOString(),
+      attachments: message.attachments.map(att => ({
+        id: att.id,
+        filename: att.name,
+        url: att.url,
+        size: att.size,
+        contentType: att.contentType || undefined,
+      })),
+    };
+
+    await this.processEvent(eventData, { messageId: message.id, channelId: message.channelId });
   }
 
-  private async handleMessageDelete(message: Message): Promise<void> {
-    try {
-      if (!config.monitoredChannels.includes(message.channel.id)) {
-        return;
-      }
-
-      console.log(`🗑️ Mensagem deletada em #${(message.channel as TextChannel).name}`);
-
-      // Deletar do Supabase (se habilitado)
-      await this.supabaseStorage.deleteMessage(message.id);
-
-    } catch (error) {
-      console.error('❌ Erro ao processar mensagem deletada:', error);
+  private async handleMessageUpdate(oldMessage: Message | PartialMessage, newMessage: Message | PartialMessage): Promise<void> {
+    if (!this.shouldMonitorChannel(newMessage.channelId || '')) {
+      return;
     }
+
+    const eventData: DiscordEventData = {
+      eventType: 'message_update',
+      messageId: newMessage.id,
+      channelId: newMessage.channelId,
+      guildId: newMessage.guildId || undefined,
+      userId: newMessage.author?.id,
+      oldContent: oldMessage.content || undefined,
+      newContent: newMessage.content || undefined,
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
   }
 
-  // Métodos para lidar com eventos de thread
+  private async handleMessageDelete(message: Message | PartialMessage): Promise<void> {
+    if (!this.shouldMonitorChannel(message.channelId)) {
+      return;
+    }
+
+    const eventData: DiscordEventData = {
+      eventType: 'message_delete',
+      messageId: message.id,
+      channelId: message.channelId,
+      guildId: message.guildId || undefined,
+      userId: message.author?.id,
+      content: message.content || undefined,
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
+  }
+
+  private async handleMessageReactionAdd(reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser): Promise<void> {
+    if (!this.shouldMonitorChannel(reaction.message.channelId) || user.bot) {
+      return;
+    }
+
+    const eventData: DiscordEventData = {
+      eventType: 'message_reaction_add',
+      messageId: reaction.message.id,
+      channelId: reaction.message.channelId,
+      guildId: reaction.message.guildId || undefined,
+      userId: user.id,
+      reaction: {
+        emoji: reaction.emoji.name || reaction.emoji.toString(),
+        userId: user.id,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
+  }
+
+  private async handleMessageReactionRemove(reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser): Promise<void> {
+    if (!this.shouldMonitorChannel(reaction.message.channelId) || user.bot) {
+      return;
+    }
+
+    const eventData: DiscordEventData = {
+      eventType: 'message_reaction_remove',
+      messageId: reaction.message.id,
+      channelId: reaction.message.channelId,
+      guildId: reaction.message.guildId || undefined,
+      userId: user.id,
+      reaction: {
+        emoji: reaction.emoji.name || reaction.emoji.toString(),
+        userId: user.id,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
+  }
+
   private async handleThreadCreate(thread: ThreadChannel): Promise<void> {
-    try {
-      console.log(`🧵 Thread criada: ${thread.id} - ${thread.name}`);
-      console.log(`   Canal pai: ${thread.parent?.name} (${thread.parentId})`);
-      console.log(`   Criada por: ${thread.ownerId}`);
-      console.log(`   Arquivo: ${thread.archived ? 'Sim' : 'Não'}`);
-      
-      // Marcar thread como aberta no banco
-      await this.supabaseStorage.openThread(thread.id);
-      
-      console.log(`✅ Thread marcada como aberta no Supabase: ${thread.id}`);
-    } catch (error) {
-      console.error('❌ Erro ao processar criação de thread:', error);
+    if (!this.shouldMonitorChannel(thread.parentId || '')) {
+      return;
     }
+
+    const eventData: DiscordEventData = {
+      eventType: 'thread_create',
+      channelId: thread.id,
+      guildId: thread.guildId,
+      userId: thread.ownerId || undefined,
+      thread: {
+        id: thread.id,
+        name: thread.name,
+        type: thread.type.toString(),
+        parentId: thread.parentId || undefined,
+      },
+      timestamp: thread.createdAt?.toISOString() || new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
   }
 
   private async handleThreadDelete(thread: ThreadChannel): Promise<void> {
-    try {
-      console.log(`🗑️ Thread deletada: ${thread.id} - ${thread.name}`);
-      console.log(`   Canal pai: ${thread.parent?.name} (${thread.parentId})`);
-      
-      // Marcar thread como fechada no banco
-      await this.supabaseStorage.closeThread(thread.id);
-      
-      console.log(`✅ Thread marcada como fechada no Supabase: ${thread.id}`);
-    } catch (error) {
-      console.error('❌ Erro ao processar deleção de thread:', error);
+    if (!this.shouldMonitorChannel(thread.parentId || '')) {
+      return;
     }
+
+    const eventData: DiscordEventData = {
+      eventType: 'thread_delete',
+      channelId: thread.id,
+      guildId: thread.guildId,
+      thread: {
+        id: thread.id,
+        name: thread.name,
+        type: thread.type.toString(),
+        parentId: thread.parentId || undefined,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.apiClient.sendEvent(eventData);
   }
 
   private async handleThreadUpdate(oldThread: ThreadChannel, newThread: ThreadChannel): Promise<void> {
-    try {
-      console.log(`🔄 Thread atualizada: ${newThread.id} - ${newThread.name}`);
-      console.log(`   Canal pai: ${newThread.parent?.name} (${newThread.parentId})`);
-      console.log(`   Arquivo: ${newThread.archived ? 'Sim' : 'Não'}`);
-      console.log(`   Bloqueado: ${newThread.locked ? 'Sim' : 'Não'}`);
-      
-      // Verificar se a thread foi arquivada ou desarquivada
-      if (newThread.archived && !oldThread.archived) {
-        console.log(`   📦 Thread arquivada!`);
-        await this.supabaseStorage.closeThread(newThread.id);
-        console.log(`✅ Thread marcada como fechada no Supabase: ${newThread.id}`);
-      } else if (!newThread.archived && oldThread.archived) {
-        console.log(`   📦 Thread desarquivada!`);
-        await this.supabaseStorage.openThread(newThread.id);
-        console.log(`✅ Thread marcada como aberta no Supabase: ${newThread.id}`);
-      }
-      
-      // Verificar se a thread foi bloqueada ou desbloqueada
-      if (newThread.locked && !oldThread.locked) {
-        console.log(`   🔒 Thread bloqueada!`);
-        await this.supabaseStorage.closeThread(newThread.id);
-        console.log(`✅ Thread marcada como fechada no Supabase: ${newThread.id}`);
-      } else if (!newThread.locked && oldThread.locked) {
-        console.log(`   🔓 Thread desbloqueada!`);
-        await this.supabaseStorage.openThread(newThread.id);
-        console.log(`✅ Thread marcada como aberta no Supabase: ${newThread.id}`);
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao processar atualização de thread:', error);
-    }
-  }
-
-  // Controle para evitar processamento duplicado
-  private processingMessages = new Set<string>();
-
-  private async handleBotMention(message: Message): Promise<void> {
-    // Verificar se a mensagem já está sendo processada
-    if (this.processingMessages.has(message.id)) {
-      console.log(`   ⚠️ Mensagem ${message.id} já está sendo processada, ignorando...`);
+    if (!this.shouldMonitorChannel(newThread.parentId || '')) {
       return;
     }
 
-    // Marcar mensagem como sendo processada
-    this.processingMessages.add(message.id);
-    
-    // Remover do controle após 10 segundos para evitar vazamento de memória
-    setTimeout(() => {
-      this.processingMessages.delete(message.id);
-    }, 10000);
-
-    try {
-      console.log(`🤖 Processando menção ao bot:`);
-      console.log(`   Autor: ${message.author.username}`);
-      console.log(`   Conteúdo: "${message.content}"`);
-
-      // Verificar permissões do usuário
-      if (!this.hasPermissionToCallBot(message)) {
-        console.log(`   ❌ Usuário sem permissão para chamar o bot`);
-        return;
-      }
-
-      console.log(`   ✅ Usuário autorizado`);
-
-      // Remover a menção do bot (usuário) e de roles do conteúdo
-      const contentWithoutMention = message.content.replace(/<@!?\d+>|<@&\d+>/g, '').trim();
-
-      console.log(`   Comando: "${contentWithoutMention}"`);
-
-      // Processar diferentes comandos
-      if (!contentWithoutMention) {
-        console.log(`   ⚠️ Mensagem vazia após remover menção, ignorando...`);
-        return;
-      }
-
-      const command = contentWithoutMention.toLowerCase();
-
-      // Enviar todas as mensagens para o agente Deco
-      console.log(`🌐 Enviando pergunta/ação para webhook do Deco...`);
-      console.log(`   📤 Conteúdo a ser enviado: "${contentWithoutMention}"`);
-
-      // Se for uma resposta, buscar contexto da mensagem anterior
-      let contextMessage = '';
-      if (message.reference?.messageId) {
-        try {
-          const referencedMessage = await message.channel.messages.fetch(message.reference.messageId);
-          contextMessage = `\n\n[CONTEXTO ANTERIOR: ${referencedMessage.author.username} disse: "${referencedMessage.content}"]`;
-          console.log(`   📋 Contexto adicionado: "${referencedMessage.content}"`);
-        } catch (error) {
-          console.log(`   📋 Erro ao buscar contexto: ${error}`);
-        }
-      }
-
-      const webhookData = this.decoWebhook.createWebhookData(
-        message,
-        this.client.user!.id,
-        this.client.user!.username,
-        false
-      );
-
-      // Adicionar contexto se disponível
-      if (contextMessage) {
-        webhookData.message.content += contextMessage;
-      }
-
-      console.log(`   📤 Dados do webhook criados, enviando...`);
-
-      const webhookResponse = await this.decoWebhook.sendMessage(webhookData);
-
-      if (webhookResponse) {
-        console.log(`   ✅ Mensagem enviada para o agente Deco com sucesso`);
-        console.log(`   📝 Agente Deco irá responder diretamente no Discord`);
-      } else {
-        console.log(`   ❌ Erro ao enviar mensagem para o agente Deco`);
-      }
-
-    } catch (error) {
-      console.error('❌ Erro ao processar menção ao bot:', error);
-    }
-  }
-
-
-
-
-
-
-
-  private createDiscordMessage(message: Message): DiscordMessage {
-    // Determinar channelId e threadId corretamente
-    let channelId: string;
-    let threadId: string | undefined;
-    let threadTitle: string | undefined;
-    let channelName: string | undefined;
-
-    if (message.channel.type === 11 || message.channel.type === 12 || message.channel.type === 13) {
-      // É uma thread - usar parentId como channelId e channel.id como threadId
-      channelId = (message.channel as any).parentId;
-      threadId = message.channel.id;
-      threadTitle = (message.channel as any).name;
-      channelName = (message.channel as any).name;
-    } else {
-      // É um canal normal
-      channelId = message.channel.id;
-      threadId = undefined;
-      threadTitle = undefined;
-      channelName = (message.channel as any).name;
-    }
-
-    return {
-      _id: message.id,
-      channelId: channelId,
-      guildId: message.guild?.id || '',
-      userId: message.author.id,
-      username: message.author.username,
-      content: message.content,
-      timestamp: message.createdAt,
-      replyTo: message.reference?.messageId || undefined,
-      threadId: threadId,
-      threadTitle: threadTitle,
-      channelName: channelName,
-      attachments: message.attachments.map(att => att.url),
-      embeds: message.embeds,
-      mentions: message.mentions.users.map(user => user.id),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    const eventData: DiscordEventData = {
+      eventType: 'thread_update',
+      channelId: newThread.id,
+      guildId: newThread.guildId,
+      thread: {
+        id: newThread.id,
+        name: newThread.name,
+        type: newThread.type.toString(),
+        parentId: newThread.parentId || undefined,
+      },
+      timestamp: new Date().toISOString(),
     };
-  }
 
-  private getChannelTypeName(type: number): string {
-    switch (type) {
-      case 0: return 'Text Channel';
-      case 15: return 'Forum Channel';
-      case 11: return 'Thread';
-      case 12: return 'Public Thread';
-      case 13: return 'Private Thread';
-      default: return `Unknown (${type})`;
-    }
-  }
-
-  private async fetchOldMessages(): Promise<void> {
-    console.log('🔄 Iniciando busca de mensagens antigas...');
-    
-    for (const channelId of config.monitoredChannels) {
-      try {
-        const channel = await this.client.channels.fetch(channelId);
-        
-        if (!channel) {
-          console.warn(`⚠️ Canal não encontrado: ${channelId}`);
-          continue;
-        }
-
-        // Verificar tipo de canal
-        if (channel.type === 15) { // Forum Channel
-          console.log(`📚 Canal Forum encontrado: #${(channel as ForumChannel).name}`);
-          await this.fetchForumMessages(channel as ForumChannel);
-        } else if (channel.type === 0) { // Text Channel
-          console.log(`📚 Canal de texto encontrado: #${(channel as TextChannel).name}`);
-          await this.fetchTextChannelMessages(channel as TextChannel);
-        } else {
-          console.warn(`⚠️ Tipo de canal não suportado: ${channel.type} (${channelId})`);
-          continue;
-        }
-
-      } catch (error) {
-        console.error(`❌ Erro ao buscar mensagens antigas do canal ${channelId}:`, error);
-        console.log(`   Verifique se o canal existe e o bot tem permissões`);
-      }
-    }
-
-    console.log('✅ Busca de mensagens antigas concluída');
-  }
-
-  private async fetchTextChannelMessages(channel: TextChannel): Promise<void> {
-    // Verificar se o bot tem permissões para ler o canal
-    if (!channel.permissionsFor(this.client.user!)?.has('ReadMessageHistory')) {
-      console.warn(`⚠️ Bot sem permissão para ler histórico do canal: #${channel.name}`);
-      return;
-    }
-
-    console.log(`📚 Buscando mensagens antigas em #${channel.name}...`);
-    
-    let lastId: string | undefined;
-    let messageCount = 0;
-    const batchSize = 100;
-
-    while (true) {
-      const options: any = { limit: batchSize };
-      if (lastId) {
-        options.before = lastId;
-      }
-
-      const messages = await channel.messages.fetch(options) as any;
-      
-      if (messages.size === 0) break;
-
-                  const messagesToProcess: DiscordMessage[] = [];
-
-      for (const message of messages.values()) {
-        if (!message.author.bot) {
-          const discordMessage = this.createDiscordMessage(message);
-          messagesToProcess.push(discordMessage);
-        }
-      }
-
-      // Salvar em lote no Supabase (se habilitado)
-      for (const msg of messagesToProcess) {
-        await this.supabaseStorage.saveMessage(msg);
-      }
-
-      messageCount += messagesToProcess.length;
-      const lastMessage = messages.last();
-      lastId = lastMessage?.id;
-
-      console.log(`✅ Processadas ${messagesToProcess.length} mensagens antigas de #${channel.name}`);
-    }
-
-    console.log(`✅ Total de ${messageCount} mensagens antigas processadas de #${channel.name}`);
-  }
-
-  private async fetchForumMessages(forumChannel: ForumChannel): Promise<void> {
-    console.log(`📚 Buscando threads do forum #${forumChannel.name}...`);
-    
-    try {
-      // Buscar threads ativas
-      const threads = await forumChannel.threads.fetchActive();
-      const archivedThreads = await forumChannel.threads.fetchArchived();
-      
-      const allThreads = [...threads.threads.values(), ...archivedThreads.threads.values()];
-      
-      console.log(`📝 Encontradas ${allThreads.length} threads no forum`);
-      
-      let totalMessages = 0;
-      
-      for (const thread of allThreads) {
-        console.log(`📖 Processando thread: #${thread.name}`);
-        
-        try {
-          let lastId: string | undefined;
-          const batchSize = 100;
-          let threadMessageCount = 0;
-
-          while (true) {
-            const options: any = { limit: batchSize };
-            if (lastId) {
-              options.before = lastId;
-            }
-
-            const messages = await thread.messages.fetch(options) as any;
-            
-            if (messages.size === 0) break;
-
-            const messagesToProcess: DiscordMessage[] = [];
-
-            for (const message of messages.values()) {
-              if (!message.author.bot) {
-                const discordMessage = this.createDiscordMessage(message);
-                messagesToProcess.push(discordMessage);
-              }
-            }
-
-            // Salvar em lote no Supabase (se habilitado)
-            for (const msg of messagesToProcess) {
-              await this.supabaseStorage.saveMessage(msg);
-            }
-
-            threadMessageCount += messagesToProcess.length;
-            const lastMessage = messages.last();
-            lastId = lastMessage?.id;
-          }
-
-          console.log(`✅ Processadas ${threadMessageCount} mensagens da thread #${thread.name}`);
-          totalMessages += threadMessageCount;
-
-        } catch (error) {
-          console.error(`❌ Erro ao processar thread #${thread.name}:`, error);
-        }
-      }
-
-      console.log(`✅ Total de ${totalMessages} mensagens processadas do forum #${forumChannel.name}`);
-
-    } catch (error) {
-      console.error(`❌ Erro ao buscar threads do forum:`, error);
-    }
+    await this.apiClient.sendEvent(eventData);
   }
 
   async start(): Promise<void> {
-    try {
-      // Conectar ao Supabase (se habilitado)
-      await this.supabaseStorage.connect();
-
-      // Conectar ao Discord
-      await this.client.login(config.discord.token);
-
-    } catch (error) {
-      console.error('❌ Erro ao iniciar o bot:', error);
-      throw error;
-    }
+    await this.client.login(config.discord.token);
   }
 
   async stop(): Promise<void> {
-    try {
-      await this.supabaseStorage.disconnect();
-      await this.client.destroy();
-      console.log('🛑 Bot parado');
-    } catch (error) {
-      console.error('❌ Erro ao parar o bot:', error);
-    }
+    logger.info('🛑 Parando bot...');
+    
+    this.healthCheck.setDiscordStatus(false);
+    await this.healthCheck.stop();
+    await this.client.destroy();
+    
+    logger.info('✅ Bot parado com sucesso');
   }
-} 
+}
