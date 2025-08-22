@@ -332,6 +332,41 @@ This project maintains enterprise-grade code quality with:
 - **Health Checks**: Native HTTP server for monitoring
 - **Development**: ESLint, Prettier, Husky for code quality
 
+## 🚀 Deployment
+
+### Discloud Hosting
+
+This project includes a `discloud.config` file for easy deployment on
+[Discloud](https://discloudbot.com):
+
+```bash
+# Build the project
+npm run build
+
+# Upload to Discloud with the following configuration:
+TYPE=bot
+MAIN=dist/index.js
+NAME=discord-enterprise-bot
+RAM=256
+VERSION=latest
+CMD=npm start
+```
+
+### Environment Setup for Discloud
+
+1. Create your `.env` file with all required variables
+2. Upload the project files including `dist/` folder
+3. Set environment variables in Discloud dashboard
+4. The bot will automatically start with health checks enabled
+
+### Other Deployment Options
+
+- **Docker**: Use the provided health check endpoints for container
+  orchestration
+- **Kubernetes**: Ready for K8s deployment with liveness/readiness probes
+- **PM2**: Compatible with PM2 process manager
+- **Heroku**: Works with Heroku's dyno system
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
