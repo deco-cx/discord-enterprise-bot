@@ -45,6 +45,14 @@ export class MessageListener {
 
   private setupEventListeners(): void {
     this.client.on(Events.MessageCreate, async (message: Message) => {
+      logger.info(`📨 Message received from ${message.author.username}`, {
+        messageId: message.id,
+        channelId: message.channelId,
+        guildId: message.guildId,
+        authorId: message.author.id,
+        isBot: message.author.bot,
+        content: message.content?.substring(0, 50) + '...'
+      });
       await this.handleMessageCreate(message);
     });
 
@@ -79,6 +87,14 @@ export class MessageListener {
     this.client.on(Events.ClientReady, () => {
       const botTag = this.client.user?.tag || 'Unknown';
       logger.botEvent('ready', { tag: botTag });
+      
+      logger.info('🔧 Bot permissions and configuration:', {
+        botId: this.client.user?.id,
+        guilds: this.client.guilds.cache.size,
+        intents: 'Guilds, GuildMessages, MessageContent, GuildMessageReactions, GuildMembers',
+        monitoredChannels: 'ALL CHANNELS (forced)'
+      });
+      
       this.healthCheck.setDiscordStatus(true, botTag);
     });
 
@@ -125,14 +141,21 @@ export class MessageListener {
   }
 
   private shouldMonitorChannel(channelId: string): boolean {
-    if (config.monitoredChannels.length === 0) {
-      return true;
-    }
-    return config.monitoredChannels.includes(channelId);
+    // Always monitor all channels (ignore MONITORED_CHANNELS config)
+    return true;
   }
 
   private async handleMessageCreate(message: Message): Promise<void> {
-    if (!this.shouldMonitorChannel(message.channelId) || message.author.bot) {
+    const shouldMonitor = this.shouldMonitorChannel(message.channelId);
+    const isBot = message.author.bot;
+    
+    logger.info(`🔍 Processing message from ${message.author.username}`, {
+      channelId: message.channelId,
+      isBot: isBot
+    });
+
+    if (isBot) {
+      logger.warn(`❌ Ignoring bot message from ${message.author.username}`);
       return;
     }
 
@@ -158,6 +181,12 @@ export class MessageListener {
         contentType: att.contentType || undefined,
       })),
     };
+
+    logger.info(`✅ Sending event to API: ${eventData.eventType}`, {
+      messageId: message.id,
+      channelId: message.channelId,
+      userId: message.author.id
+    });
 
     await this.processEvent(eventData, { messageId: message.id, channelId: message.channelId });
   }
