@@ -1,4 +1,4 @@
-import { logger } from './logger';
+// Removed logger import to avoid circular dependency
 
 interface ValidationRule {
   required?: boolean;
@@ -109,19 +109,19 @@ export class ConfigValidator {
     }
 
     if (this.errors.length > 0) {
-      logger.error('Configuration validation failed:', {
+      console.error('❌ Configuration validation failed:', {
         errors: this.errors,
         totalErrors: this.errors.length,
       });
 
       for (const error of this.errors) {
-        logger.error(`  ❌ ${error.field}: ${error.message}`);
+        console.error(`  ❌ ${error.field}: ${error.message}`);
       }
 
       return false;
     }
 
-    logger.info('✅ Configuration validation passed');
+    console.log('✅ Configuration validation passed');
     this.logConfigSummary();
     return true;
   }
@@ -257,7 +257,7 @@ export class ConfigValidator {
       },
     };
 
-    logger.info('🔧 Configuration Summary:', summary);
+    console.log('🔧 Configuration Summary:', JSON.stringify(summary, null, 2));
   }
 
   getErrors(): ValidationError[] {

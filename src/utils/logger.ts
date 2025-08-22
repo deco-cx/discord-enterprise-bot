@@ -1,6 +1,4 @@
 /* eslint-disable no-unused-vars */
-import { config } from '../config';
-
 type LogMetadata =
   | Record<string, unknown>
   | string
@@ -23,8 +21,17 @@ class Logger {
   private enableColors: boolean;
 
   constructor() {
-    this.logLevel = this.parseLogLevel(config.logging.level);
-    this.enableColors = config.logging.enableColors;
+    // Lazy load config to avoid circular dependencies
+    this.logLevel = this.parseLogLevel(this.getLogLevel());
+    this.enableColors = this.getEnableColors();
+  }
+
+  private getLogLevel(): string {
+    return process.env.LOG_LEVEL || 'info';
+  }
+
+  private getEnableColors(): boolean {
+    return process.env.LOG_COLORS !== 'false';
   }
 
   private parseLogLevel(level: string): LogLevel {
