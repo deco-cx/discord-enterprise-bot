@@ -1,111 +1,142 @@
-# Discord Bot Monitor
+# Discord Enterprise Bot
 
-Bot avançado para Discord que monitora eventos de mensagens, reações e threads com sistema robusto de logging, métricas, rate limiting e health checks.
+<div align="center">
 
-## ✨ Funcionalidades
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Discord.js](https://img.shields.io/badge/Discord.js-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.js.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-### 📡 Monitoramento de Eventos Discord
-- ✅ **Criação de mensagens** (`message_create`)
-- ✅ **Edição de mensagens** (`message_update`)
-- ✅ **Exclusão de mensagens** (`message_delete`)
-- ✅ **Adição de reações** (`message_reaction_add`)
-- ✅ **Remoção de reações** (`message_reaction_remove`)
-- ✅ **Criação de threads** (`thread_create`)
-- ✅ **Exclusão de threads** (`thread_delete`)
-- ✅ **Atualização de threads** (`thread_update`)
+**Enterprise-grade Discord bot with advanced monitoring, health checks, circuit
+breaker, and professional logging**
 
-### 🛡️ Recursos Avançados
-- 🔄 **Retry Automático** com backoff exponencial
-- ⚡ **Circuit Breaker** para proteção contra falhas
-- 📊 **Rate Limiting** configurável por canal
-- 🏥 **Health Check** com endpoints de monitoramento
-- 📝 **Logging Estruturado** com níveis configuráveis
-- 📈 **Métricas de Performance** em tempo real
-- 🔒 **Autenticação** com API keys e webhook secrets
-- ⏱️ **Timeout Configurável** (padrão 120s para IAs)
-- 🔗 **Keep-Alive** para conexões HTTP
-- ✅ **Validação de Configuração** com schema validation
+[Features](#features) • [Quick Start](#quick-start) •
+[Configuration](#configuration) • [API Reference](#api-reference) •
+[Contributing](#contributing)
 
-## Configuração
+</div>
 
-### 1. Clone o repositório
+## 🚀 Features
+
+### 🛡️ Enterprise-Grade Reliability
+
+- **Circuit Breaker** with exponential backoff retry logic
+- **Health Check** endpoints for Kubernetes/Docker deployments
+- **Rate Limiting** per channel/event type to prevent API abuse
+- **Timeout Management** optimized for AI API integrations (120s default)
+- **Keep-Alive** connections for improved performance
+
+### 📊 Advanced Monitoring & Observability
+
+- **Structured Logging** with configurable levels (DEBUG, INFO, WARN, ERROR)
+- **Real-time Metrics** collection and performance tracking
+- **Circuit Breaker** status monitoring
+- **API Response Time** tracking and analytics
+- **Event Statistics** with detailed breakdowns
+
+### 🔒 Security & Authentication
+
+- **API Key** authentication for external webhooks
+- **Webhook Secret** validation for secure communications
+- **Input Validation** and sanitization across all endpoints
+- **Environment-based** configuration management
+
+### 🤖 Discord Event Coverage
+
+- **Message Lifecycle**: Create, Update, Delete
+- **Reactions**: Add, Remove with emoji tracking
+- **Threads**: Create, Update, Delete with metadata
+- **Rich Metadata**: Author info, attachments, timestamps
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Discord Bot Token
+- External API endpoint (optional)
+
+### Installation
+
 ```bash
-git clone <repository-url>
-cd discord-bot-monitor
-```
+# Clone the repository
+git clone https://github.com/deco-cx/discord-enterprise-bot.git
+cd discord-enterprise-bot
 
-### 2. Instale as dependências
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. Configure as variáveis de ambiente
-```bash
+# Configure environment
 cp env.example .env
-```
+# Edit .env with your configuration
 
-Edite o arquivo `.env` com suas configurações:
-
-```env
-# ===== CONFIGURAÇÃO OBRIGATÓRIA =====
-DISCORD_TOKEN=your_discord_bot_token_here
-
-# ===== API EXTERNA =====
-API_URL=https://your-api-endpoint.com/discord-events
-API_TIMEOUT=120000                    # Timeout em ms (padrão: 120s para IAs)
-API_RETRY_ATTEMPTS=3                  # Tentativas de retry (padrão: 3)
-API_RETRY_DELAY=1000                  # Delay entre retries em ms (padrão: 1s)
-API_KEEP_ALIVE=true                   # Keep-alive para conexões HTTP
-
-# ===== SEGURANÇA =====
-API_KEY=your_api_key_here             # API key para autenticação
-WEBHOOK_SECRET=your_webhook_secret    # Secret para webhook validation
-
-# ===== LOGGING =====
-LOG_LEVEL=info                        # debug, info, warn, error
-LOG_COLORS=true                       # Colorir logs no terminal
-
-# ===== RATE LIMITING =====
-MAX_EVENTS_PER_MINUTE=100            # Máximo de eventos por minuto por canal
-RATE_LIMIT_WINDOW_MS=60000           # Janela de tempo para rate limiting
-
-# ===== HEALTH CHECK =====
-HEALTH_CHECK_ENABLED=true            # Habilitar health check server
-HEALTH_CHECK_PORT=3000               # Porta do health check server
-
-# ===== MONITORAMENTO =====
-MONITORED_CHANNELS=123,456,789       # Canais específicos (opcional)
-```
-
-### 4. Execute o bot
-```bash
-# Desenvolvimento
+# Development
 npm run dev
 
-# Produção
-npm run build
-npm start
+# Production
+npm run build && npm start
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable                | Required | Default  | Description                              |
+| ----------------------- | -------- | -------- | ---------------------------------------- |
+| `DISCORD_TOKEN`         | ✅       | -        | Discord bot token                        |
+| `API_URL`               | ❌       | -        | External webhook endpoint                |
+| `API_TIMEOUT`           | ❌       | `120000` | API timeout in milliseconds              |
+| `API_RETRY_ATTEMPTS`    | ❌       | `3`      | Number of retry attempts                 |
+| `LOG_LEVEL`             | ❌       | `info`   | Logging level (debug, info, warn, error) |
+| `HEALTH_CHECK_PORT`     | ❌       | `3000`   | Health check server port                 |
+| `MAX_EVENTS_PER_MINUTE` | ❌       | `100`    | Rate limiting threshold                  |
+
+### Complete Configuration Example
+
+```env
+# Discord Configuration
+DISCORD_TOKEN=your_discord_bot_token_here
+
+# External API Configuration
+API_URL=https://your-api-endpoint.com/discord-events
+API_TIMEOUT=120000
+API_RETRY_ATTEMPTS=3
+API_RETRY_DELAY=1000
+API_KEEP_ALIVE=true
+
+# Security
+API_KEY=your_api_key_here
+WEBHOOK_SECRET=your_webhook_secret_here
+
+# Monitoring
+LOG_LEVEL=info
+LOG_COLORS=true
+HEALTH_CHECK_ENABLED=true
+HEALTH_CHECK_PORT=3000
+
+# Rate Limiting
+MAX_EVENTS_PER_MINUTE=100
+RATE_LIMIT_WINDOW_MS=60000
+
+# Optional: Channel Filtering
+MONITORED_CHANNELS=123456789,987654321
 ```
 
 ## 🏥 Health Check Endpoints
 
-O bot expõe vários endpoints para monitoramento:
+The bot exposes several monitoring endpoints for production deployments:
 
-```bash
-# Status geral de saúde
-GET http://localhost:3000/health
+### Available Endpoints
 
-# Métricas detalhadas
-GET http://localhost:3000/metrics
+| Endpoint       | Description           | Use Case                    |
+| -------------- | --------------------- | --------------------------- |
+| `GET /health`  | Overall health status | Load balancer health checks |
+| `GET /ready`   | Readiness probe       | Kubernetes readiness probe  |
+| `GET /live`    | Liveness probe        | Kubernetes liveness probe   |
+| `GET /metrics` | Detailed metrics      | Monitoring dashboards       |
 
-# Verificação de prontidão (ready)
-GET http://localhost:3000/ready
+### Health Check Response Example
 
-# Verificação de vivacidade (liveness)
-GET http://localhost:3000/live
-```
-
-### Exemplo de Resposta do Health Check:
 ```json
 {
   "status": "healthy",
@@ -127,13 +158,21 @@ GET http://localhost:3000/live
 }
 ```
 
-## Estrutura dos Dados Enviados
+## 📡 API Reference
 
-Cada evento enviado para a API contém as seguintes informações:
+### Discord Event Data Structure
 
 ```typescript
 interface DiscordEventData {
-  eventType: 'message_create' | 'message_update' | 'message_delete' | 'message_reaction_add' | 'message_reaction_remove' | 'thread_create' | 'thread_delete' | 'thread_update';
+  eventType:
+    | 'message_create'
+    | 'message_update'
+    | 'message_delete'
+    | 'message_reaction_add'
+    | 'message_reaction_remove'
+    | 'thread_create'
+    | 'thread_delete'
+    | 'thread_update';
   messageId?: string;
   channelId: string;
   guildId?: string;
@@ -146,11 +185,6 @@ interface DiscordEventData {
     bot: boolean;
   };
   timestamp: string;
-  reactions?: Array<{
-    emoji: string;
-    count: number;
-    users: string[];
-  }>;
   attachments?: Array<{
     id: string;
     filename: string;
@@ -164,89 +198,109 @@ interface DiscordEventData {
     type: string;
     parentId?: string;
   };
-  oldContent?: string; // Para message_update
-  newContent?: string; // Para message_update
+  // Event-specific fields
+  oldContent?: string;
+  newContent?: string;
   reaction?: {
     emoji: string;
     userId: string;
-  }; // Para eventos de reação
+  };
 }
 ```
 
-## Configuração do Bot Discord
+### Webhook Integration
 
-1. Vá ao [Discord Developer Portal](https://discord.com/developers/applications)
-2. Crie uma nova aplicação
-3. Vá para a seção "Bot" e crie um bot
-4. Copie o token e cole na variável `DISCORD_TOKEN`
-5. Na seção "OAuth2 > URL Generator":
-   - Marque "bot" em Scopes
-   - Marque as seguintes permissões em Bot Permissions:
-     - View Channels
-     - Read Message History
-     - Use Slash Commands (opcional)
-
-## Exemplo de Uso da API
-
-O bot enviará requisições HTTP POST para a URL configurada em `API_URL`:
+External APIs will receive POST requests with the following structure:
 
 ```bash
-POST /discord-events
+POST /your-webhook-endpoint
 Content-Type: application/json
+X-API-Key: your_api_key_here
+X-Webhook-Secret: your_webhook_secret_here
 
 {
   "eventType": "message_create",
   "messageId": "123456789012345678",
   "channelId": "987654321098765432",
-  "guildId": "111111111111111111",
-  "userId": "222222222222222222",
-  "content": "Olá mundo!",
+  "content": "Hello world!",
   "author": {
     "id": "222222222222222222",
-    "username": "usuario",
+    "username": "user",
     "discriminator": "1234",
     "bot": false
   },
-  "timestamp": "2024-01-01T12:00:00.000Z",
-  "attachments": []
+  "timestamp": "2024-01-01T12:00:00.000Z"
 }
 ```
 
-## Scripts Disponíveis
+## 🛠️ Development
 
-### 🚀 Execução
-- `npm run dev` - Executa em modo desenvolvimento com reload automático
-- `npm run build` - Compila o TypeScript para JavaScript
-- `npm start` - Executa a versão compilada
-- `npm run watch` - Executa em modo watch
+### Scripts
 
-### 🔧 Qualidade de Código
-- `npm run lint` - Executa ESLint para verificar problemas no código
-- `npm run lint:fix` - Executa ESLint e corrige problemas automaticamente
-- `npm run format` - Formata código com Prettier
-- `npm run format:check` - Verifica se código está formatado corretamente
-- `npm run type-check` - Verifica tipos TypeScript sem gerar arquivos
-- `npm run quality` - Executa verificação completa (tipos + lint + formato)
-- `npm run quality:fix` - Executa correção completa (tipos + lint:fix + format)
+```bash
+# Development
+npm run dev              # Start with hot reload
+npm run watch           # Start with file watching
 
-## 📊 Logging e Monitoramento
+# Production
+npm run build           # Compile TypeScript
+npm start              # Run compiled version
 
-### Níveis de Log
-- `DEBUG`: Informações detalhadas para debugging
-- `INFO`: Informações gerais de operação
-- `WARN`: Avisos sobre situações atípicas
-- `ERROR`: Erros que precisam de atenção
-
-### Métricas Coletadas
-- **Eventos por tipo**: Contagem e tempo de resposta
-- **Taxa de sucesso**: Percentual de APIs calls bem-sucedidas
-- **Rate limiting**: Estatísticas de limitação por canal
-- **Circuit breaker**: Status e falhas do circuit breaker
-- **Uptime**: Tempo de atividade do bot
-
-### Exemplo de Log Estruturado:
+# Code Quality
+npm run lint           # Run ESLint
+npm run lint:fix       # Fix linting issues
+npm run format         # Format with Prettier
+npm run type-check     # TypeScript type checking
+npm run quality        # Run all quality checks
+npm run quality:fix    # Fix all quality issues
 ```
+
+### Code Quality
+
+This project maintains enterprise-grade code quality with:
+
+- **ESLint** with TypeScript rules and custom configurations
+- **Prettier** for consistent code formatting
+- **Husky** for automated pre-commit hooks
+- **lint-staged** for efficient incremental linting
+- **TypeScript** strict mode with comprehensive type checking
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and ensure tests pass: `npm run quality`
+4. Commit your changes: `git commit -m 'Add amazing feature'`
+5. Push to the branch: `git push origin feature/amazing-feature`
+6. Open a Pull Request
+
+## 📊 Monitoring & Observability
+
+### Circuit Breaker
+
+- **Automatic Protection**: Opens after 5 consecutive failures
+- **Recovery**: Auto-recovery after 60 seconds
+- **States**: `closed` → `open` → `half-open` → `closed`
+- **Monitoring**: Status available via `/metrics` endpoint
+
+### Retry Logic
+
+- **Intelligent Backoff**: Exponential backoff (1s, 2s, 4s)
+- **Configurable Attempts**: Up to 10 retry attempts
+- **Smart Detection**: Retries on network errors and 5xx responses
+- **Skip Logic**: Skips retry on 4xx client errors
+
+### Logging
+
+```bash
+# Example structured log output
 2024-01-01T12:00:00.000Z [INFO ] 📤 Event: message_create
+{
+  "eventType": "message_create",
+  "channelId": "123456789",
+  "responseTime": "123ms"
+}
+
 2024-01-01T12:00:00.123Z [INFO ] API call completed
 {
   "method": "POST",
@@ -256,74 +310,48 @@ Content-Type: application/json
 }
 ```
 
-## 🔧 Recursos de Robustez
+## 🏗️ Architecture
 
-### Circuit Breaker
-- Protege contra sobrecarga da API externa
-- Abre após 5 falhas consecutivas
-- Reseta automaticamente após 60 segundos
-- Estado: `closed` → `open` → `half-open` → `closed`
+### Core Components
 
-### Retry com Backoff
-- Até 3 tentativas por evento (configurável)
-- Backoff exponencial: 1s, 2s, 4s
-- Retry automático para timeouts e erros 5xx
+- **MessageListener**: Discord event handling and processing
+- **ApiClient**: HTTP client with retry logic and circuit breaker
+- **HealthCheckServer**: Monitoring endpoints for deployment
+- **Logger**: Structured logging with multiple output levels
+- **RateLimiter**: Per-channel rate limiting implementation
+- **MetricsCollector**: Performance tracking and analytics
+- **ConfigValidator**: Environment configuration validation
 
-### Rate Limiting
-- Limite configurável por canal/tipo de evento
-- Janela deslizante de tempo
-- Previne spam em canais muito ativos
+### Technology Stack
 
-## 🔧 Ferramentas de Qualidade de Código
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript with strict type checking
+- **Discord**: Discord.js v14 with full intent support
+- **HTTP Client**: Axios with interceptors and retries
+- **Logging**: Custom structured logger with metadata
+- **Health Checks**: Native HTTP server for monitoring
+- **Development**: ESLint, Prettier, Husky for code quality
 
-### 📏 ESLint
-- **Linting avançado** para TypeScript
-- **Regras customizadas** para boas práticas
-- **Integração com Prettier** para formatação
-- **Verificação automática** de tipos e padrões
+## 📄 License
 
-### 🎨 Prettier
-- **Formatação automática** de código
-- **Consistência de estilo** em todo o projeto
-- **Integração IDE** para formatação on-save
-- **Configuração otimizada** para TypeScript
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
+for details.
 
-### 🪝 Git Hooks (Husky + lint-staged)
-- **Pre-commit hooks** automáticos
-- **Linting incremental** apenas em arquivos modificados
-- **Formatação automática** antes do commit
-- **Garante qualidade** em todos os commits
+## 🤝 Support
 
-### Exemplo de Workflow:
-```bash
-# Verificar qualidade completa
-npm run quality
+- 📖 [Documentation](https://github.com/deco-cx/discord-enterprise-bot/wiki)
+- 🐛 [Issue Tracker](https://github.com/deco-cx/discord-enterprise-bot/issues)
+- 💬
+  [Discussions](https://github.com/deco-cx/discord-enterprise-bot/discussions)
 
-# Corrigir todos os problemas automaticamente
-npm run quality:fix
+---
 
-# Commit automático (hooks rodam automaticamente)
-git add .
-git commit -m "feat: nova funcionalidade"
-```
+<div align="center">
 
-## 🛠️ Tecnologias
+**Built with ❤️ by [deco.cx](https://deco.cx)**
 
-### Core
-- **Node.js** - Runtime JavaScript
-- **TypeScript** - Tipagem estática  
-- **Discord.js** - Biblioteca para interação com a API do Discord
-- **Axios** - Cliente HTTP avançado com retry e circuit breaker
-- **dotenv** - Gerenciamento de variáveis de ambiente
+[⭐ Star this repo](https://github.com/deco-cx/discord-enterprise-bot) •
+[🍴 Fork it](https://github.com/deco-cx/discord-enterprise-bot/fork) •
+[📢 Share it](https://twitter.com/intent/tweet?text=Check%20out%20this%20amazing%20Discord%20Enterprise%20Bot!&url=https://github.com/deco-cx/discord-enterprise-bot)
 
-### Monitoramento & Robustez
-- **Sistema de Health Check** - Monitoramento interno
-- **Logger Estruturado** - Logging profissional com níveis
-- **Rate Limiter** - Controle de fluxo de eventos
-- **Metrics Collector** - Coleta de métricas em tempo real
-
-### Qualidade de Código
-- **ESLint** - Linting e análise estática
-- **Prettier** - Formatação automática de código
-- **Husky** - Git hooks para automação
-- **lint-staged** - Linting incremental otimizado
+</div>
