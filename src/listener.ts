@@ -45,13 +45,11 @@ export class MessageListener {
 
   private setupEventListeners(): void {
     this.client.on(Events.MessageCreate, async (message: Message) => {
-      logger.info(`📨 Message received from ${message.author.username}`, {
+      logger.info(`📨 Message received`, {
         messageId: message.id,
         channelId: message.channelId,
         guildId: message.guildId,
-        authorId: message.author.id,
-        isBot: message.author.bot,
-        content: message.content?.substring(0, 50) + '...'
+        isBot: message.author.bot
       });
       await this.handleMessageCreate(message);
     });
@@ -86,10 +84,9 @@ export class MessageListener {
 
     this.client.on(Events.ClientReady, () => {
       const botTag = this.client.user?.tag || 'Unknown';
-      logger.botEvent('ready', { tag: botTag });
+      logger.botEvent('ready');
       
       logger.info('🔧 Bot permissions and configuration:', {
-        botId: this.client.user?.id,
         guilds: this.client.guilds.cache.size,
         intents: 'Guilds, GuildMessages, MessageContent, GuildMessageReactions, GuildMembers',
         monitoredChannels: 'ALL CHANNELS (forced)'
@@ -149,13 +146,13 @@ export class MessageListener {
     const shouldMonitor = this.shouldMonitorChannel(message.channelId);
     const isBot = message.author.bot;
     
-    logger.info(`🔍 Processing message from ${message.author.username}`, {
+    logger.info(`🔍 Processing message`, {
       channelId: message.channelId,
       isBot: isBot
     });
 
     if (isBot) {
-      logger.warn(`❌ Ignoring bot message from ${message.author.username}`);
+      logger.warn(`❌ Ignoring bot message`);
       return;
     }
 
@@ -184,8 +181,7 @@ export class MessageListener {
 
     logger.info(`✅ Sending event to API: ${eventData.eventType}`, {
       messageId: message.id,
-      channelId: message.channelId,
-      userId: message.author.id
+      channelId: message.channelId
     });
 
     await this.processEvent(eventData, { messageId: message.id, channelId: message.channelId });

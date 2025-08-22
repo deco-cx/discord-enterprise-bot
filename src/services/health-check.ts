@@ -176,7 +176,7 @@ export class HealthCheckServer {
     this.discordConnected = connected;
     this.discordUser = user;
 
-    logger.info(`Discord status updated: ${connected ? 'connected' : 'disconnected'}`, { user });
+    logger.info(`Discord status updated: ${connected ? 'connected' : 'disconnected'}`);
   }
 
   recordSuccessfulApiCall(): void {
