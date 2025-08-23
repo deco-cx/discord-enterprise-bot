@@ -32,8 +32,7 @@ zip -r "$ZIP_NAME" . \
     -x ".prettierignore" \
     -x "tsconfig.json" \
     -x "src/*" \
-    -x "*.md" \
-    -x ".env"
+    -x "*.md"
 
 echo "✅ ZIP criado com sucesso: ${ZIP_NAME}"
 echo ""
@@ -42,25 +41,37 @@ echo "   ✅ dist/ (código compilado)"
 echo "   ✅ package.json"
 echo "   ✅ discloud.config"
 echo "   ✅ env.example (template)"
+if [ -f ".env" ]; then
+    echo "   ✅ .env (variáveis configuradas)"
+else
+    echo "   ❌ .env (não encontrado - precisa criar)"
+fi
 echo ""
-echo "📋 Arquivos excluídos por segurança:"
-echo "   ❌ .env (contém tokens sensíveis)"
+echo "📋 Arquivos excluídos:"
 echo "   ❌ node_modules/"
 echo "   ❌ package-lock.json"
 echo "   ❌ .git/"
 echo "   ❌ src/ (código fonte)"
 echo "   ❌ arquivos de desenvolvimento"
 echo ""
-echo "🎯 Próximos passos:"
-echo "   1. Faça upload do arquivo ${ZIP_NAME} no Discloud"
-echo "   2. Configure as variáveis de ambiente no painel do Discloud"
-echo "   3. Inicie o bot"
-echo ""
-echo "🔒 IMPORTANTE - Configure estas variáveis no Discloud:"
-echo "   • DISCORD_TOKEN=seu_token_aqui (obrigatório)"
-echo "   • API_URL=https://localhost-f6b2fd7c.deco.host/mcp"
-echo "   • API_KEY=sua_api_key_aqui"
-echo "   • WEBHOOK_SECRET=seu_webhook_secret_aqui"
-echo "   • LOG_LEVEL=info (opcional)"
-echo ""
-echo "⚠️  NUNCA commite arquivos .env ou ZIPs com tokens!"
+if [ -f ".env" ]; then
+    echo "🎯 Próximos passos:"
+    echo "   1. Faça upload do arquivo ${ZIP_NAME} no Discloud"
+    echo "   2. Inicie o bot (variáveis já configuradas)"
+    echo ""
+    echo "✅ Arquivo .env incluído! Certifique-se que todas as variáveis estão corretas."
+else
+    echo "⚠️  ATENÇÃO: Arquivo .env não encontrado!"
+    echo ""
+    echo "🔧 Para incluir variáveis no ZIP:"
+    echo "   1. Copie: cp env.example .env"
+    echo "   2. Edite: nano .env"
+    echo "   3. Configure suas variáveis reais:"
+    echo "      • DISCORD_TOKEN=seu_token_aqui"
+    echo "      • API_URL=http://localhost:8787/mcp"
+    echo "      • API_KEY=sua_api_key_aqui"
+    echo "      • WEBHOOK_SECRET=seu_webhook_secret_aqui"
+    echo "   4. Gere ZIP novamente: npm run build:discloud"
+    echo ""
+    echo "🚨 IMPORTANTE: Nunca commite o arquivo .env no Git!"
+fi
