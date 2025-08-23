@@ -49,16 +49,19 @@ X-Webhook-Secret: your_webhook_secret_here
 User-Agent: Discord-Bot-Monitor/1.0.0
 
 {
-  "method": "tools/call",
-  "params": {
-    "name": "DISCORD_WEBHOOK",
-    "arguments": {
-      "eventType": "message_create",
-      "messageId": "1234567890123456789",
-      "channelId": "9876543210987654321",
-      "content": "Mensagem do Discord",
-      ...
-    }
+  "tool": "DISCORD_WEBHOOK",
+  "input": {
+    "eventType": "message_create",
+    "messageId": "1234567890123456789",
+    "channelId": "9876543210987654321",
+    "content": "Mensagem do Discord",
+    "author": {
+      "id": "1234567890123456789",
+      "username": "usuario",
+      "discriminator": "1234",
+      "bot": false
+    },
+    "timestamp": "2025-08-22T22:51:47.000Z"
   }
 }
 ```
@@ -259,15 +262,12 @@ curl -X POST https://localhost-f6b2fd7c.deco.host/mcp \
   -H "X-Webhook-Secret: your_webhook_secret_here" \
   -H "Content-Type: application/json" \
   -d '{
-    "method": "tools/call",
-    "params": {
-      "name": "DISCORD_WEBHOOK",
-      "arguments": {
-        "eventType": "message_create",
-        "channelId": "123456789",
-        "content": "Teste de integração MCP",
-        "timestamp": "2025-08-22T23:45:00.000Z"
-      }
+    "tool": "DISCORD_WEBHOOK",
+    "input": {
+      "eventType": "message_create",
+      "channelId": "123456789",
+      "content": "Teste de integração MCP",
+      "timestamp": "2025-08-22T23:45:00.000Z"
     }
   }'
 ```

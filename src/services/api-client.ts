@@ -154,11 +154,8 @@ export class ApiClient {
 
         // Formato MCP para chamar a tool DISCORD_WEBHOOK
         const mcpPayload = {
-          method: 'tools/call',
-          params: {
-            name: 'DISCORD_WEBHOOK',
-            arguments: eventData
-          }
+          tool: 'DISCORD_WEBHOOK',
+          input: eventData
         };
 
         // eslint-disable-next-line no-await-in-loop
