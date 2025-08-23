@@ -30,6 +30,7 @@ export class ApiClient {
       httpAgent: config.api.keepAlive ? new Agent({ keepAlive: true }) : undefined,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
         'User-Agent': 'Discord-Bot-Monitor/1.0.0',
         ...(config.security.apiKey && { 'X-API-Key': config.security.apiKey }),
         ...(config.security.webhookSecret && { 'X-Webhook-Secret': config.security.webhookSecret }),
@@ -152,10 +153,15 @@ export class ApiClient {
 
         logger.event(eventData.eventType, { attempt: attempt + 1 });
 
-        // Formato MCP para chamar a tool DISCORD_WEBHOOK
+        // Formato JSON-RPC 2.0 para MCP
         const mcpPayload = {
-          tool: 'DISCORD_WEBHOOK',
-          input: eventData,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'DISCORD_WEBHOOK',
+            arguments: eventData
+          },
+          id: Date.now() // ID único para a requisição
         };
 
         // eslint-disable-next-line no-await-in-loop
