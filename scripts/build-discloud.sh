@@ -32,7 +32,8 @@ zip -r "$ZIP_NAME" . \
     -x ".prettierignore" \
     -x "tsconfig.json" \
     -x "src/*" \
-    -x "*.md"
+    -x "*.md" \
+    -x ".env"
 
 echo "✅ ZIP criado com sucesso: ${ZIP_NAME}"
 echo ""
@@ -40,9 +41,10 @@ echo "📋 Arquivos incluídos no ZIP:"
 echo "   ✅ dist/ (código compilado)"
 echo "   ✅ package.json"
 echo "   ✅ discloud.config"
-echo "   ✅ .env (se existir)"
+echo "   ✅ env.example (template)"
 echo ""
-echo "📋 Arquivos excluídos:"
+echo "📋 Arquivos excluídos por segurança:"
+echo "   ❌ .env (contém tokens sensíveis)"
 echo "   ❌ node_modules/"
 echo "   ❌ package-lock.json"
 echo "   ❌ .git/"
@@ -51,20 +53,14 @@ echo "   ❌ arquivos de desenvolvimento"
 echo ""
 echo "🎯 Próximos passos:"
 echo "   1. Faça upload do arquivo ${ZIP_NAME} no Discloud"
-if [ -f ".env" ]; then
-    echo "   2. O arquivo .env foi incluído no ZIP (variáveis já configuradas)"
-    echo "   3. Inicie o bot"
-else
-    echo "   2. Configure as variáveis de ambiente no painel do Discloud"
-    echo "   3. Inicie o bot"
-fi
+echo "   2. Configure as variáveis de ambiente no painel do Discloud"
+echo "   3. Inicie o bot"
 echo ""
-if [ ! -f ".env" ]; then
-    echo "💡 Lembre-se de configurar estas variáveis no Discloud:"
-    echo "   • DISCORD_TOKEN (obrigatório)"
-    echo "   • API_URL (se usar webhook externa)"
-    echo "   • LOG_LEVEL (opcional, padrão: info)"
-    echo "   • Outras conforme necessário"
-else
-    echo "✅ Arquivo .env incluído! Certifique-se que todas as variáveis estão corretas."
-fi
+echo "🔒 IMPORTANTE - Configure estas variáveis no Discloud:"
+echo "   • DISCORD_TOKEN=seu_token_aqui (obrigatório)"
+echo "   • API_URL=https://localhost-f6b2fd7c.deco.host/mcp"
+echo "   • API_KEY=sua_api_key_aqui"
+echo "   • WEBHOOK_SECRET=seu_webhook_secret_aqui"
+echo "   • LOG_LEVEL=info (opcional)"
+echo ""
+echo "⚠️  NUNCA commite arquivos .env ou ZIPs com tokens!"

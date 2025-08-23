@@ -48,6 +48,13 @@ jspm_packages/
 # Output of 'npm pack'
 *.tgz
 
+# Deployment packages (contain sensitive data)
+*.zip
+*.tar.gz
+*.rar
+*-deployment.*
+*-deploy.*
+
 # Yarn Integrity file
 .yarn-integrity
 
