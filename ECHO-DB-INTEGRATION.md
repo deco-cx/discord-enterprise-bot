@@ -13,7 +13,7 @@ Configure o Discord Bot Monitor para enviar webhooks para o Echo DB MCP:
 DISCORD_TOKEN=your_discord_bot_token_here
 
 # API Configuration - Echo DB MCP
-API_URL=https://your-echo-db-app.workers.dev/discord-events
+API_URL=https://localhost-f6b2fd7c.deco.host/mcp
 API_TIMEOUT=120000
 API_RETRY_ATTEMPTS=3
 API_RETRY_DELAY=1000
@@ -38,15 +38,29 @@ HEALTH_CHECK_PORT=3000
 
 ### 2. **Headers Enviados Automaticamente**
 
-O Discord Bot Monitor enviará automaticamente os headers obrigatórios:
+O Discord Bot Monitor enviará automaticamente uma chamada MCP:
 
 ```http
-POST /discord-events HTTP/1.1
-Host: your-echo-db-app.workers.dev
+POST /mcp HTTP/1.1
+Host: localhost-f6b2fd7c.deco.host
 Content-Type: application/json
 X-API-Key: your_secure_api_key_here
 X-Webhook-Secret: your_webhook_secret_here
 User-Agent: Discord-Bot-Monitor/1.0.0
+
+{
+  "method": "tools/call",
+  "params": {
+    "name": "DISCORD_WEBHOOK",
+    "arguments": {
+      "eventType": "message_create",
+      "messageId": "1234567890123456789",
+      "channelId": "9876543210987654321",
+      "content": "Mensagem do Discord",
+      ...
+    }
+  }
+}
 ```
 
 ## 📦 Estrutura dos Dados Enviados
@@ -237,18 +251,24 @@ export default {
 
 ## 🧪 Testando a Integração
 
-### 1. **Teste Manual do Webhook**
+### 1. **Teste Manual da Tool MCP**
 
 ```bash
-curl -X POST https://your-echo-db-app.workers.dev/discord-events \
+curl -X POST https://localhost-f6b2fd7c.deco.host/mcp \
   -H "X-API-Key: your_secure_api_key_here" \
   -H "X-Webhook-Secret: your_webhook_secret_here" \
   -H "Content-Type: application/json" \
   -d '{
-    "eventType": "message_create",
-    "channelId": "123456789",
-    "content": "Teste de integração",
-    "timestamp": "2025-08-22T23:45:00.000Z"
+    "method": "tools/call",
+    "params": {
+      "name": "DISCORD_WEBHOOK",
+      "arguments": {
+        "eventType": "message_create",
+        "channelId": "123456789",
+        "content": "Teste de integração MCP",
+        "timestamp": "2025-08-22T23:45:00.000Z"
+      }
+    }
   }'
 ```
 

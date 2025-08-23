@@ -152,8 +152,17 @@ export class ApiClient {
 
         logger.event(eventData.eventType, { attempt: attempt + 1 });
 
+        // Formato MCP para chamar a tool DISCORD_WEBHOOK
+        const mcpPayload = {
+          method: 'tools/call',
+          params: {
+            name: 'DISCORD_WEBHOOK',
+            arguments: eventData
+          }
+        };
+
         // eslint-disable-next-line no-await-in-loop
-        const response = await this.axiosInstance.post('', eventData);
+        const response = await this.axiosInstance.post('', mcpPayload);
 
         const responseTime = Date.now() - startTime;
 
